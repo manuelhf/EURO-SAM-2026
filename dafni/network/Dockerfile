@@ -6,8 +6,8 @@ FROM python:3.11-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLBACKEND=Agg \
     MPLCONFIGDIR=/tmp/matplotlib HOME=/tmp
 
-# OpenMP runtime for the EPA SWMM engine (swmm-toolkit)
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+# OpenMP runtime for the EPA SWMM engine (swmm-toolkit); expat for rasterio's GDAL
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
