@@ -73,6 +73,17 @@ jobs:
           echo "image=ouseburn-${{ matrix.model }}:$tag" >> "$GITHUB_OUTPUT"
           echo "file=ouseburn-${{ matrix.model }}-$tag.tar.gz" >> "$GITHUB_OUTPUT"
 
+      # Docker Hub rate-limits anonymous pulls from shared runners (HTTP 429);
+      # pull the base image with retries so the build itself does not fail on it.
+      - name: Pull base image
+        run: |
+          base=$(awk '/^FROM /{print $2; exit}' dafni/${{ matrix.model }}/Dockerfile)
+          for i in 1 2 3 4 5; do
+            docker pull --platform linux/amd64 "$base" && exit 0
+            echo "Pull of $base failed (attempt $i), retrying in $((i * 20)) s"; sleep $((i * 20))
+          done
+          exit 1
+
       - name: Build (linux/amd64)
         run: |
           docker build --platform linux/amd64 \
