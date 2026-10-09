@@ -80,5 +80,10 @@ geopandas · networkx · osmnx · PyTorch · scikit-learn · Google Colab
 
 ## Licence
 
-No licence has been chosen yet; until then, all rights are reserved by the authors. Keep the repository private
-or add a licence (e.g. MIT for the code) before making it public.
+- **Code** (notebooks, `dafni/` scripts, Dockerfiles, workflows): [MIT](../LICENSE).
+- **Data, results and documentation** (the generated `ouseburn_*` folders, figures, model descriptions,
+  and the DAFNI model and dataset records): [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+  Please attribute Tetiana Starovoit and Manuel Herrera, Newcastle University.
+
+The synthetic network is derived from OpenStreetMap data (© OpenStreetMap contributors, ODbL), building
+footprints and NASADEM elevation; their own licences apply to those inputs.

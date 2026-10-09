@@ -25,7 +25,11 @@ metadata:
   subject: Utilities / Communication
   project_name: EURO-SAM 2026
   project_url: https://github.com/manuelhf/EURO-SAM-2026
-  # licence: add a licence URL once the authors choose one (README: none yet)
+  licence: https://creativecommons.org/licenses/by/4.0/
+  rights: >-
+    Model description, data and outputs: CC BY 4.0 (attribute Tetiana Starovoit
+    and Manuel Herrera, Newcastle University). Source code: MIT licence (see
+    LICENSE in the source repository).
 spec:
   command: ["python", "/app/run_network.py"]
   inputs:
