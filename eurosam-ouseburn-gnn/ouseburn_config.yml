@@ -1,0 +1,67 @@
+# SWMManywhere configuration — Ouseburn, Newcastle upon Tyne
+# Verified against swmmanywhere 0.2.4
+# Used by Euro_SAM_v1.ipynb (network cell). Stand-alone alternative:
+#   python -m swmmanywhere --config_path=ouseburn_config.yml --verbose=True
+#
+# Run 2 changes (to reduce fragmentation: run 1 gave 34 components / 34 outfalls):
+#   - bbox extended ~200 m south so streets reach the Quayside and the Tyne bank
+#   - outfall_length raised 40 -> 150 to discourage extra river outfalls
+#   - clip_to_catchments removed from graphfcn_list (it splits the network
+#     at DEM sub-basin boundaries)
+# CHECK THE BBOX ON A MAP (e.g. bboxfinder.com) before running.
+
+base_dir: ./ouseburn_output
+project: ouseburn
+
+# [lon_min, lat_min, lon_max, lat_max]  WGS84
+# run 1: [-1.6000, 54.9670, -1.5820, 54.9800]
+bbox: [-1.6000, 54.9645, -1.5820, 54.9800]
+
+run_model: true
+run_settings:
+  duration: 3600          # s; default storm.dat is a 15-min burst at t=0
+  reporting_iters: 60     # SWMM routing steps between stored results
+  storevars: [flooding, flow, depth]
+
+parameter_overrides:
+  topology_derivation:
+    allowable_networks: [drive]   # road network as pipe proxy (default: walk + drive)
+                                  # NB this override forces a street re-download each run
+
+  outfall_derivation:
+    outfall_length: 150           # dimensionless weight (default 40); higher = fewer outfalls
+    # river_buffer_distance left at default 150 m
+
+  hydraulic_design:
+    min_depth: 1.0                # m cover (valid range 0-1)
+    max_depth: 6.0                # m (valid range 2-10)
+
+  # Gentler alternative to removing clip_to_catchments below: restore that
+  # line in graphfcn_list and uncomment these two lines instead.
+  # subcatchment_derivation:
+  #   subbasin_clip_method: community
+
+graphfcn_list:
+  - assign_id                       # consistent ids, remove duplicates
+  - fix_geometries                  # consistent geometry directions
+  - remove_non_pipe_allowable_links # drop bridges/motorways etc.
+  - calculate_streetcover           # impervious street cover
+  - remove_parallel_edges           # keep shorter of parallel edges
+  - to_undirected                   # undirected for cleanup
+  - split_long_edges                # max edge length
+  - merge_street_nodes              # merge nodes that are too close
+  - assign_id                       # remove duplicates from merging
+  # - clip_to_catchments            # REMOVED: splits network at DEM sub-basin edges
+  - calculate_contributing_area     # runoff contributing areas
+  - set_elevation                   # node elevation from DEM
+  - double_directed                 # allow flow in both directions
+  - fix_geometries                  # fix geometries after re-directing
+  - set_surface_slope               # edge surface slope
+  - set_chahinian_slope             # slope transform for weights
+  - set_chahinian_angle             # angle transform for weights
+  - calculate_weights               # edge weights
+  - identify_outfalls               # street -> river outfalls
+  - derive_topology                 # shortest-path network topology
+  - pipe_by_pipe                    # pipe diameters and depths
+  - fix_geometries                  # geometries present before writing
+  - assign_id                       # final id pass

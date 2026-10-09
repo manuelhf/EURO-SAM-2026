@@ -1,0 +1,7 @@
+# On Google Colab only `pip install swmmanywhere` is needed (the rest is pre-installed).
+# For a local environment (Python 3.10-3.12):
+swmmanywhere==0.2.4      # brings pyswmm, geopandas, networkx, osmnx, pyarrow
+torch                    # graph learning (GPU optional)
+scikit-learn
+matplotlib
+jupyter
