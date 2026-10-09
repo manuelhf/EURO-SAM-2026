@@ -1,0 +1,7 @@
+# Scenario model (notebook Euro_SAM_v1, steps 2-4). Lock: requirements.txt
+# Shared packages are constrained to the network lock (same SWMM engine).
+pyswmm
+numpy
+pandas<3
+networkx
+matplotlib

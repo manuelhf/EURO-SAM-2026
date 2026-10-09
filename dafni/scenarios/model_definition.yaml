@@ -1,0 +1,210 @@
+# DAFNI model definition (schema v1beta3):
+# https://docs.secure.dafni.rl.ac.uk/docs/Reference/model-definition-reference
+kind: M
+api_version: v1beta3
+metadata:
+  display_name: Ouseburn hydraulic scenarios (SWMM)
+  name: ouseburn-hydraulic-scenarios
+  type: model
+  summary: >-
+    Redesigns a synthetic sewer network to standards, places sensors and
+    simulates paired normal and disturbed SWMM runs (steps 2-4 of the EURO-SAM
+    2026 Ouseburn pipeline).
+  description: >-
+    Steps 2-4 of the EURO-SAM 2026 study "Hydraulically-informed graph learning
+    for sewer monitoring under data sparsity" (Tetiana Starovoit, Manuel Herrera,
+    Newcastle University). Takes a SWMManywhere model, keeps the main drainage
+    systems, redesigns pipe sizes and gradients (rational method, minimum
+    gradient and cover, pumping stations below a maximum manhole depth), ranks
+    manholes for monitoring (nested 2/5/10/20 % sensor sets), then simulates
+    light/moderate rain events, each as a normal run plus disturbed runs
+    (pipe blockage or extra inflow at a manhole). Defaults reproduce the
+    reported 108-run dataset. Its outputs are the input of the "Ouseburn graph
+    learning" model.
+  publisher: Newcastle University
+  contact_point_name: Manuel Herrera
+  contact_point_email: manuel.herrera@newcastle.ac.uk
+  source_code: https://github.com/manuelhf/EURO-SAM-2026
+  subject: Utilities / Communication
+  project_name: EURO-SAM 2026
+  project_url: https://github.com/manuelhf/EURO-SAM-2026
+  # licence: add a licence URL once the authors choose one (README: none yet)
+spec:
+  command: ["python", "/app/run_scenarios.py"]
+  inputs:
+    parameters:
+      - name: SEED
+        title: Random seed
+        description: Seed for sensor ties, dry-weather flow, rain events and disturbances.
+        type: integer
+        default: 42
+        min: 0
+        required: true
+      - name: N_RAIN_EVENTS
+        title: Rain events
+        description: Normal-operation rain events (each is one baseline run).
+        type: integer
+        default: 12
+        min: 1
+        max: 500
+        required: true
+      - name: DISTURBANCES_PER_EVENT
+        title: Disturbances per event
+        description: Disturbed runs per rain event (12 x (1 + 8) = 108 runs by default).
+        type: integer
+        default: 8
+        min: 1
+        max: 100
+        required: true
+      - name: BLOCKAGE_SHARE
+        title: Share of blockages
+        description: Probability that a disturbance is a blockage; the rest are extra inflows.
+        type: number
+        default: 0.5
+        min: 0
+        max: 1
+        required: true
+      - name: RAIN_PEAK_MMH
+        title: Rain peak range (mm/h)
+        description: '"min,max" peak intensity of the triangular rain events, e.g. "0,25" for the stronger variant.'
+        type: string
+        default: "0,12"
+        regex: '^\s*[0-9.]+\s*,\s*[0-9.]+\s*$'
+        required: true
+      - name: BLOCKAGE_FACTOR
+        title: Blockage remaining-diameter range
+        description: '"min,max" fraction of the pipe diameter left open by a blockage, e.g. "0.05,0.25".'
+        type: string
+        default: "0.10,0.40"
+        regex: '^\s*[0-9.]+\s*,\s*[0-9.]+\s*$'
+        required: true
+      - name: INFLOW_LPS
+        title: Extra inflow range (L/s)
+        description: '"min,max" extra inflow injected at a manhole (burst main, illicit connection, infiltration).'
+        type: string
+        default: "3,25"
+        regex: '^\s*[0-9.]+\s*,\s*[0-9.]+\s*$'
+        required: true
+      - name: DURATION_H
+        title: Simulated hours per run
+        description: Length of each SWMM run (results stored every 5 min).
+        type: integer
+        default: 3
+        min: 1
+        max: 48
+        required: true
+      - name: MIN_COMPONENT
+        title: Minimum drainage-system size
+        description: Drainage systems with fewer nodes than this are dropped.
+        type: integer
+        default: 50
+        min: 1
+        required: true
+      - name: SENSOR_FRACTION
+        title: Headline sensor density
+        description: Density used for is_sensor, the plots and the summary statistics.
+        type: string
+        default: "0.05"
+        options:
+          - name: "0.02"
+            title: 2 %
+          - name: "0.05"
+            title: 5 %
+          - name: "0.1"
+            title: 10 %
+          - name: "0.2"
+            title: 20 %
+        required: true
+      - name: SENSOR_STRATEGY
+        title: Sensor placement strategy
+        description: >-
+          practice = outlet first, then the largest upstream areas, kept apart by
+          the sensor spacing; spread = farthest-point sampling on pipe length.
+        type: string
+        default: practice
+        options:
+          - name: practice
+            title: Utility practice (trunk sewers)
+          - name: spread
+            title: Even spread (farthest point)
+        required: true
+      - name: SENSOR_SPACING_M
+        title: Sensor spacing (m)
+        description: Minimum pipe distance between sensors for the practice strategy.
+        type: number
+        default: 150
+        min: 1
+        required: true
+      - name: REDESIGN
+        title: Redesign pipes to standards
+        description: Replace SWMManywhere's sizing and grading with standards-based design.
+        type: boolean
+        default: true
+        required: true
+      - name: DESIGN_RAIN_MMH
+        title: Design rainfall (mm/h)
+        description: Rational-method design intensity on impervious area.
+        type: number
+        default: 50
+        min: 1
+        required: true
+      - name: MAX_MANHOLE_DEPTH_M
+        title: Maximum manhole depth (m)
+        description: Deeper incoming pipes become pumping stations (sensitivity case in the README is 12).
+        type: number
+        default: 8
+        min: 1
+        required: true
+      - name: QA_MAX_ERROR_PCT
+        title: QA continuity-error limit (%)
+        description: Runs above this flow-routing continuity error get qa_ok = False.
+        type: number
+        default: 10
+        min: 0
+        required: true
+      - name: RUN_DIAGNOSE
+        title: Run hydraulic diagnostic
+        description: Run the two short diagnostic simulations first and save diagnose.txt.
+        type: boolean
+        default: true
+        required: true
+    dataslots:
+      - name: SWMM network model
+        description: >-
+          Exactly one SWMManywhere .inp file (e.g. model_2.inp from the network
+          model), directly or inside a .zip. In a workflow, the network model's
+          output can be used instead of this slot.
+        path: inputs/swmm-model
+        required: false
+  outputs:
+    datasets:
+      - name: nodes.csv
+        type: csv
+        description: Node table (coordinates, invert, depth, component, upstream area, sensor ranks).
+      - name: edges.csv
+        type: csv
+        description: Pipe table (u, v, length, diameter, slope, link type, original values).
+      - name: scenarios.csv
+        type: csv
+        description: One row per run (type, target, magnitude, rain, QA, impact).
+      - name: timeseries.npz
+        type: npz
+        description: Depth, flooding and inflow [S,T,N] and flow [S,T,L] time series.
+      - name: checks.txt
+        type: text
+        description: Network and hydraulic QA summary.
+      - name: diagnose.txt
+        type: text
+        description: Continuity and flooding diagnostic (if RUN_DIAGNOSE).
+      - name: sensors_map.png
+        type: png
+        description: Network with the nested sensor sets.
+      - name: example_blockage.png
+        type: png
+        description: Footprint of a typical blockage.
+      - name: example_inflow.png
+        type: png
+        description: Footprint of a typical extra inflow.
+      - name: run_parameters.json
+        type: json
+        description: Parameters and input model checksum of the run.

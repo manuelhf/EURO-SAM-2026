@@ -1,0 +1,8 @@
+# Graph-learning model (notebook Euro_SAM_GNN). Lock: requirements.txt
+# CPU build of PyTorch (DAFNI runs on CPU); shared packages constrained to the network lock.
+torch
+numpy
+pandas<3
+networkx
+scikit-learn
+matplotlib

@@ -1,0 +1,5 @@
+# Docker build context is the repository root; images only need dafni/ and the config.
+*
+!dafni/
+!eurosam-ouseburn-gnn/ouseburn_config.yml
+**/__pycache__

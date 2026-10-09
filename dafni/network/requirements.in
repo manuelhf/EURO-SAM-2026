@@ -1,0 +1,5 @@
+# Network model (notebook Euro_SAM_v1, step 1). Lock: requirements.txt
+swmmanywhere==0.2.4
+pandas<3            # notebooks ran on Colab's pandas 2.x
+matplotlib
+pyyaml

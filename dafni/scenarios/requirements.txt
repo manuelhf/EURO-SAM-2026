@@ -1,0 +1,81 @@
+aenum==3.1.17
+    # via
+    #   -c network/requirements.txt
+    #   swmm-toolkit
+contourpy==1.3.3
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+cycler==0.12.1
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+fonttools==4.66.1
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+julian==0.14
+    # via
+    #   -c network/requirements.txt
+    #   pyswmm
+kiwisolver==1.5.1
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+matplotlib==3.11.2
+    # via
+    #   -c network/requirements.txt
+    #   -r scenarios/requirements.in
+networkx==3.6.1
+    # via
+    #   -c network/requirements.txt
+    #   -r scenarios/requirements.in
+numpy==2.4.6
+    # via
+    #   -c network/requirements.txt
+    #   -r scenarios/requirements.in
+    #   contourpy
+    #   matplotlib
+    #   pandas
+packaging==26.3
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+    #   pyswmm
+pandas==2.3.3
+    # via
+    #   -c network/requirements.txt
+    #   -r scenarios/requirements.in
+pillow==12.3.0
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+pyparsing==3.3.3
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+pyswmm==2.2.0
+    # via
+    #   -c network/requirements.txt
+    #   -r scenarios/requirements.in
+python-dateutil==2.9.0.post0
+    # via
+    #   -c network/requirements.txt
+    #   matplotlib
+    #   pandas
+pytz==2026.5
+    # via
+    #   -c network/requirements.txt
+    #   pandas
+six==1.17.0
+    # via
+    #   -c network/requirements.txt
+    #   python-dateutil
+swmm-toolkit==0.17.0
+    # via
+    #   -c network/requirements.txt
+    #   pyswmm
+tzdata==2026.5
+    # via
+    #   -c network/requirements.txt
+    #   pandas

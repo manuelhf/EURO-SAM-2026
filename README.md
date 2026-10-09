@@ -41,6 +41,12 @@ Generated data folders (created by the notebooks, at the top level):
 Settings for each step sit at the top of its settings cell (sensor density, number of rain events,
 disturbance ranges, redesign rules, training options).
 
+## Running on DAFNI
+
+[`dafni/`](dafni/README.md) packages the notebooks as three DAFNI models: network, scenarios and graph learning.
+Each has a script, a Dockerfile and a DAFNI model definition. The *DAFNI images* GitHub Action builds each
+image as a downloadable `.tar.gz`.
+
 ## Headline results (reported run)
 
 Network: 590 manholes in two drainage systems (lower Ouseburn, Newcastle), redesigned to standards;
