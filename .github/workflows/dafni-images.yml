@@ -73,14 +73,21 @@ jobs:
           echo "image=ouseburn-${{ matrix.model }}:$tag" >> "$GITHUB_OUTPUT"
           echo "file=ouseburn-${{ matrix.model }}-$tag.tar.gz" >> "$GITHUB_OUTPUT"
 
-      # Docker Hub rate-limits anonymous pulls from shared runners (HTTP 429);
-      # pull the base image with retries so the build itself does not fail on it.
+      # Docker Hub rate-limits anonymous pulls from shared runners (HTTP 429).
+      # Pull the official base image from Google's Docker Hub mirror first (same
+      # image, no limit), fall back to Docker Hub, and tag it under the name the
+      # Dockerfile uses so the build takes the local copy.
       - name: Pull base image
         run: |
           base=$(awk '/^FROM /{print $2; exit}' dafni/${{ matrix.model }}/Dockerfile)
-          for i in 1 2 3 4 5; do
-            docker pull --platform linux/amd64 "$base" && exit 0
-            echo "Pull of $base failed (attempt $i), retrying in $((i * 20)) s"; sleep $((i * 20))
+          for i in 1 2 3; do
+            for src in "mirror.gcr.io/library/$base" "$base"; do
+              if docker pull --platform linux/amd64 "$src"; then
+                [ "$src" = "$base" ] || docker tag "$src" "$base"
+                exit 0
+              fi
+            done
+            echo "Pull of $base failed (attempt $i), retrying in $((i * 30)) s"; sleep $((i * 30))
           done
           exit 1
 
