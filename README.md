@@ -41,6 +41,12 @@ Generated data folders (created by the notebooks, at the top level):
 Settings for each step sit at the top of its settings cell (sensor density, number of rain events,
 disturbance ranges, redesign rules, training options).
 
+## Running on DAFNI
+
+[`dafni/`](dafni/README.md) packages the notebooks as three DAFNI models: network, scenarios and graph learning.
+Each has a script, a Dockerfile and a DAFNI model definition. The *DAFNI images* GitHub Action builds each
+image as a downloadable `.tar.gz`.
+
 ## Headline results (reported run)
 
 Network: 590 manholes in two drainage systems (lower Ouseburn, Newcastle), redesigned to standards;
@@ -80,5 +86,10 @@ geopandas · networkx · osmnx · PyTorch · scikit-learn · Google Colab
 
 ## Licence
 
-No licence has been chosen yet; until then, all rights are reserved by the authors. Keep the repository private
-or add a licence (e.g. MIT for the code) before making it public.
+- **Code** (notebooks, `dafni/` scripts, Dockerfiles, workflows): [MIT](LICENSE).
+- **Data, results and documentation** (the generated `ouseburn_*` folders, figures, model descriptions,
+  and the DAFNI model and dataset records): [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+  Please attribute Tetiana Starovoit and Manuel Herrera, Newcastle University.
+
+The synthetic network is derived from OpenStreetMap data (© OpenStreetMap contributors, ODbL), building
+footprints and NASADEM elevation; their own licences apply to those inputs.

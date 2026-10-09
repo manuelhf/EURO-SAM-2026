@@ -1,0 +1,138 @@
+# DAFNI model definition (schema v1beta3):
+# https://docs.secure.dafni.rl.ac.uk/docs/Reference/model-definition-reference
+kind: M
+api_version: v1beta3
+metadata:
+  display_name: Ouseburn graph learning for sparse sewer monitoring
+  name: ouseburn-graph-learning
+  type: model
+  summary: >-
+    Compares interpolation, a topology-only GNN and a hydraulically-informed GNN
+    for inferring disturbances at unmonitored manholes, with event-wise
+    cross-validation (step 5 of the EURO-SAM 2026 Ouseburn pipeline).
+  description: >-
+    Step 5 of the EURO-SAM 2026 study "Hydraulically-informed graph learning for
+    sewer monitoring under data sparsity" (Tetiana Starovoit, Manuel Herrera,
+    Newcastle University). From a few monitored manholes (2/5/10/20 %), infers
+    at every unmonitored manhole the deviation from expected behaviour and the
+    probability that it is affected by a disturbance. Methods: graph-distance
+    interpolation (IDW), GNN on connectivity only, and a hydraulically-informed
+    GNN (flow direction, pipe-gated messages, expected state as input). Whole
+    rain events are held out (event-wise cross-validation); results are pooled
+    over folds and GNN-hydro vs GNN-topo is compared with a paired bootstrap.
+    Runs on CPU.
+  publisher: Newcastle University
+  contact_point_name: Manuel Herrera
+  contact_point_email: manuel.herrera@newcastle.ac.uk
+  source_code: https://github.com/manuelhf/EURO-SAM-2026
+  subject: Utilities / Communication
+  project_name: EURO-SAM 2026
+  project_url: https://github.com/manuelhf/EURO-SAM-2026
+  licence: https://creativecommons.org/licenses/by/4.0/
+  rights: >-
+    Model description, data and outputs: CC BY 4.0 (attribute Tetiana Starovoit
+    and Manuel Herrera, Newcastle University). Source code: MIT licence (see
+    LICENSE in the source repository).
+spec:
+  command: ["python", "/app/run_gnn.py"]
+  inputs:
+    parameters:
+      - name: SEED
+        title: Random seed
+        description: Seed for the fold split, training and bootstrap.
+        type: integer
+        default: 0
+        min: 0
+        required: true
+      - name: N_FOLDS
+        title: Cross-validation folds
+        description: Event-wise folds; each rain event is tested exactly once.
+        type: integer
+        default: 4
+        min: 2
+        max: 20
+        required: true
+      - name: EPOCHS
+        title: Maximum epochs
+        description: Maximum training epochs per method and fold.
+        type: integer
+        default: 60
+        min: 1
+        max: 1000
+        required: true
+      - name: PATIENCE
+        title: Early-stopping patience
+        description: Epochs without improvement in validation average precision before stopping.
+        type: integer
+        default: 10
+        min: 1
+        max: 1000
+        required: true
+      - name: N_BOOT
+        title: Bootstrap resamples
+        description: Paired-bootstrap resamples for GNN-hydro vs GNN-topo.
+        type: integer
+        default: 2000
+        min: 10
+        max: 100000
+        required: true
+      - name: HEADLINE_DENSITY
+        title: Headline sensor density
+        description: Sensor density used for the example likelihood maps.
+        type: string
+        default: "0.05"
+        options:
+          - name: "0.02"
+            title: 2 %
+          - name: "0.05"
+            title: 5 %
+          - name: "0.1"
+            title: 10 %
+          - name: "0.2"
+            title: 20 %
+        required: true
+      - name: REPLOT_EXAMPLE
+        title: Redraw example map (typical case)
+        description: >-
+          Redraw example_likelihood_map.png for a typical test disturbance from
+          the saved fold models, as in the notebook's last cell.
+        type: boolean
+        default: true
+        required: true
+    dataslots:
+      - name: Ouseburn scenario dataset
+        description: >-
+          nodes.csv, edges.csv, scenarios.csv and timeseries.npz from the
+          scenarios model (directly or inside a .zip). In a workflow, the
+          scenarios model's output can be used instead of this slot.
+        path: inputs/scenario-dataset
+        required: false
+  outputs:
+    datasets:
+      - name: results_pooled.csv
+        type: csv
+        description: Test metrics pooled over folds, per method and sensor density.
+      - name: results_by_fold.csv
+        type: csv
+        description: Test metrics per fold, method and sensor density.
+      - name: hydro_vs_topo_bootstrap.csv
+        type: csv
+        description: Paired-bootstrap differences GNN-hydro minus GNN-topo with 95 % intervals.
+      - name: results_by_density.png
+        type: png
+        description: F1, average precision and source localisation against sensor density.
+      - name: example_likelihood_map.png
+        type: png
+        description: Truth vs each method's P(affected) for a typical test disturbance.
+      - name: GNN-topo_fold*.pt
+        type: pt
+        description: Trained topology-only GNN weights per fold (PyTorch state dict).
+      - name: GNN-hydro_fold*.pt
+        type: pt
+        description: Trained hydraulically-informed GNN weights per fold (PyTorch state dict).
+      - name: config.json
+        type: json
+        description: All settings of the run (notebook globals).
+      - name: run_parameters.json
+        type: json
+        description: Parameters, device and input checksums of the run.

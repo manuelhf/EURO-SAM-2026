@@ -1,0 +1,173 @@
+# Builds the three DAFNI model images (network, scenarios, gnn) as gzipped
+# `docker save` archives, ready for DAFNI's "Add model" upload together with
+# the model's model_definition.yaml.
+#
+#   * every run: one artifact per model ("ouseburn-<model>-dafni") containing
+#     ouseburn-<model>-<tag>.tar.gz + model_definition.yaml
+#   * tags v*: the same files are also attached to the GitHub release
+#   * manual run with "pipeline_test": chains network -> scenarios -> gnn with
+#     small settings, as a DAFNI workflow would (needs OpenStreetMap access)
+name: DAFNI images
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "dafni/**"
+      - "eurosam-ouseburn-gnn/ouseburn_config.yml"
+      - ".dockerignore"
+      - ".github/workflows/dafni-images.yml"
+  pull_request:
+    paths:
+      - "dafni/**"
+      - "eurosam-ouseburn-gnn/ouseburn_config.yml"
+      - ".dockerignore"
+      - ".github/workflows/dafni-images.yml"
+  workflow_dispatch:
+    inputs:
+      pipeline_test:
+        description: "Also run network -> scenarios -> gnn with small settings (~30 min)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dafni-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml==6.0.3
+      - name: Check model definitions (DAFNI v1beta3)
+        run: python dafni/validate_definitions.py
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: network
+            check: "import run_network, swmmanywhere.swmmanywhere, pyswmm"
+          - model: scenarios
+            check: "import run_scenarios, pyswmm, swmm.toolkit.solver"
+          - model: gnn
+            check: "import run_gnn, torch, sklearn"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name and tag
+        id: meta
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then tag="$GITHUB_REF_NAME"; else tag="${GITHUB_SHA::7}"; fi
+          echo "image=ouseburn-${{ matrix.model }}:$tag" >> "$GITHUB_OUTPUT"
+          echo "file=ouseburn-${{ matrix.model }}-$tag.tar.gz" >> "$GITHUB_OUTPUT"
+
+      # Docker Hub rate-limits anonymous pulls from shared runners (HTTP 429).
+      # Pull the official base image from Google's Docker Hub mirror first (same
+      # image, no limit), fall back to Docker Hub, and tag it under the name the
+      # Dockerfile uses so the build takes the local copy.
+      - name: Pull base image
+        run: |
+          base=$(awk '/^FROM /{print $2; exit}' dafni/${{ matrix.model }}/Dockerfile)
+          for i in 1 2 3; do
+            for src in "mirror.gcr.io/library/$base" "$base"; do
+              if docker pull --platform linux/amd64 "$src"; then
+                [ "$src" = "$base" ] || docker tag "$src" "$base"
+                exit 0
+              fi
+            done
+            echo "Pull of $base failed (attempt $i), retrying in $((i * 30)) s"; sleep $((i * 30))
+          done
+          exit 1
+
+      - name: Build (linux/amd64)
+        run: |
+          docker build --platform linux/amd64 \
+            -f dafni/${{ matrix.model }}/Dockerfile \
+            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            --label org.opencontainers.image.revision=$GITHUB_SHA \
+            -t ${{ steps.meta.outputs.image }} .
+
+      - name: Import check (no network)
+        run: docker run --rm --network none --entrypoint python ${{ steps.meta.outputs.image }} -c "${{ matrix.check }}"
+
+      - name: Save image as .tar.gz (one image, one tag - as DAFNI requires)
+        run: |
+          mkdir -p dist
+          docker save ${{ steps.meta.outputs.image }} | gzip > dist/${{ steps.meta.outputs.file }}
+          cp dafni/${{ matrix.model }}/model_definition.yaml dist/
+          ls -lh dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ouseburn-${{ matrix.model }}-dafni
+          path: dist/
+          compression-level: 0        # already gzipped
+          retention-days: 30
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Attach images and definitions to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for m in network scenarios gnn; do
+            mv "dist/ouseburn-$m-dafni/model_definition.yaml" "dist/ouseburn-$m-dafni/model_definition_$m.yaml"
+          done
+          gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --clobber dist/*/*
+
+  pipeline-test:
+    if: github.event_name == 'workflow_dispatch' && inputs.pipeline_test
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Load images
+        run: for f in dist/*/*.tar.gz; do gunzip -c "$f" | docker load; done
+      - name: Mimic DAFNI mounts (/data/inputs read-only, /data/outputs)
+        run: mkdir -p run/network run/scenarios run/gnn && chmod -R 777 run
+      - name: 1. Network (SWMManywhere, default Ouseburn bbox)
+        run: |
+          docker run --rm -e BBOX="" -v "$PWD/run/network:/data/outputs" \
+            $(docker images --format '{{.Repository}}:{{.Tag}}' ouseburn-network | head -1)
+      - name: 2. Scenarios (4 events x 2 disturbances)
+        run: |
+          docker run --rm -e SEED=42 -e N_RAIN_EVENTS=4 -e DISTURBANCES_PER_EVENT=2 -e REDESIGN=True \
+            -e RUN_DIAGNOSE=True -e SENSOR_FRACTION=0.05 -e RAIN_PEAK_MMH="0,12" \
+            -v "$PWD/run/network:/data/inputs/network:ro" -v "$PWD/run/scenarios:/data/outputs" \
+            $(docker images --format '{{.Repository}}:{{.Tag}}' ouseburn-scenarios | head -1)
+      - name: 3. Graph learning (2 folds, 2 epochs)
+        run: |
+          docker run --rm -e SEED=0 -e N_FOLDS=2 -e EPOCHS=2 -e N_BOOT=20 -e REPLOT_EXAMPLE=True \
+            -v "$PWD/run/scenarios:/data/inputs/scenarios:ro" -v "$PWD/run/gnn:/data/outputs" \
+            $(docker images --format '{{.Repository}}:{{.Tag}}' ouseburn-gnn | head -1)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipeline-test-outputs
+          path: run/
+          retention-days: 7
