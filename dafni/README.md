@@ -54,15 +54,38 @@ Then upload the inputs as DAFNI datasets, or chain the models in a workflow. Out
 appear under `/data/inputs/<step-name>`, and the entry points search all of `/data/inputs`:
 
 1. **Network**: no input needed (it uses the repository's `ouseburn_config.yml`). Optionally set `BBOX` or
-   attach a different config. **Needs internet access** for OpenStreetMap (Overpass), building footprints
-   and NASADEM elevation (Microsoft Planetary Computer). If DAFNI runs models without internet access,
-   skip this step and give the scenarios model a frozen `model_2.inp` as a dataset instead.
+   attach a different config. It downloads OpenStreetMap (Overpass), building footprints and NASADEM
+   elevation (Microsoft Planetary Computer) at run time; DAFNI models do have internet access. About
+   8 minutes on DAFNI.
 2. **Scenarios**: input is the network output (or a dataset with one `.inp`). Defaults reproduce the
    reported 108 runs; the notebook's "stronger-disturbance variant" is `RAIN_PEAK_MMH=0,25`,
-   `BLOCKAGE_FACTOR=0.05,0.25`.
+   `BLOCKAGE_FACTOR=0.05,0.25`. About 70 minutes on DAFNI.
 3. **Graph learning**: input is the scenarios output (or the `ouseburn_dataset` folder as a dataset).
    Defaults are the notebook's 4-fold event-wise cross-validation, 60 epochs and 2000 bootstrap resamples.
-   It runs on CPU (expect a few hours with the defaults).
+   It runs on CPU; about 1 hour on DAFNI with the defaults.
+
+### Building the workflow in DAFNI
+
+These points come from the first runs of the full workflow (October 2026):
+
+- **Data only flows through "Choose steps to receive data from".** In the workflow builder, the arrows
+  drawn between steps only set the order in which they run. A step receives the previous step's
+  `/data/outputs` only if that step is ticked in its **Choose steps to receive data from** setting. If a
+  step is linked by an arrow alone, it starts with an empty `/data/inputs` and stops with "Expected exactly
+  one … under ['/data/inputs'] … found []". Set it for **scenarios** (← network) and **graph-learning**
+  (← scenarios).
+- **Outputs are only kept by a Publish step.** Add a *Publish* step after scenarios and after graph
+  learning, with file rows such as `outputs/**/*` for the step whose files you want. Two publish rows must
+  not pick up the same file name (all three models write `run_parameters.json`).
+- **The network step depends on outside services.** If Overpass or Microsoft's Planetary Computer is
+  briefly unavailable, the step fails with an error such as
+  `pystac_client.exceptions.APIError: {"error":"Service is unavailable."}`. Rerun the workflow once the
+  service is back. To avoid the dependency, start the workflow at scenarios and give it the published
+  network `.inp` as a dataset.
+- **GNN results vary slightly between machines.** Graph-learning training on DAFNI's CPUs is not
+  bit-identical to a Colab GPU run: F1 and average precision agreed within 0.01–0.03, but the small
+  topology-vs-hydraulic difference in source localisation changed sign. In the DAFNI run the paired
+  bootstrap marks that difference as not significant (`hydro_vs_topo_bootstrap.csv`).
 
 The dataslots are optional in the definitions because DAFNI requires a default dataset UUID for a required
 dataslot. Once the datasets are on DAFNI, you can add their UUIDs as `default:` and set `required: true`.
